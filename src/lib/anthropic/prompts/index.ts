@@ -367,9 +367,4 @@ export const SYSTEM_PROMPTS = {
   `,
 };
 
-// Export all prompts
-export {
-  WINE_INDUSTRY_PROMPTS,
-  PROMPT_TEMPLATES,
-  SYSTEM_PROMPTS,
-};
+// All exports are already declared above

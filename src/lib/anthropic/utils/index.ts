@@ -1,4 +1,4 @@
-import { ClaudeResponse, AnalysisContext } from '../client';
+import { AnalysisContext } from '../client';
 
 // Text Processing Utilities
 export const truncateText = (text: string, maxLength: number = 100): string => {
@@ -32,9 +32,9 @@ export const formatResponseForDisplay = (response: string): string => {
 
 // Context Building Utilities
 export const buildAnalysisContext = (
-  metrics?: any,
+  metrics?: Record<string, unknown>,
   userQuery?: string,
-  conversationHistory?: Array<{ role: string; content: string; timestamp: string }>
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>
 ): AnalysisContext => {
   return {
     metrics,
@@ -326,23 +326,4 @@ export const extractSeasonalContext = (text: string): string | null => {
   return null;
 };
 
-// Export all utilities
-export {
-  truncateText,
-  extractKeyInsights,
-  formatResponseForDisplay,
-  buildAnalysisContext,
-  extractContextFromQuery,
-  analyzeResponseQuality,
-  extractRecommendations,
-  extractMetrics,
-  enhancePromptWithContext,
-  addWineIndustryContext,
-  validateResponse,
-  measureResponseTime,
-  estimateTokenCount,
-  optimizePromptLength,
-  extractWineVarietals,
-  extractWineRegions,
-  extractSeasonalContext,
-};
+// All exports are already declared above

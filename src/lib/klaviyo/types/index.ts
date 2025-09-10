@@ -398,27 +398,4 @@ export interface ListGrowth {
   }>;
 }
 
-// Export all types
-export type {
-  KlaviyoCampaign,
-  KlaviyoFlow,
-  KlaviyoSegment,
-  KlaviyoProfile,
-  KlaviyoEvent,
-  KlaviyoMetrics,
-  CampaignMetrics,
-  FlowMetrics,
-  SegmentMetrics,
-  OverallMetrics,
-  WineryMetrics,
-  WineClubMetrics,
-  CustomerInsights,
-  CustomerSegment,
-  CustomerJourneyStep,
-  SeasonalSales,
-  WinePreferences,
-  KlaviyoApiResponse,
-  KlaviyoError,
-  KlaviyoQuery,
-  ListGrowth,
-};
+// All types are already exported above

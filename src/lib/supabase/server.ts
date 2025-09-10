@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { config } from '@/lib/env';
 
 export async function createServerSupabaseClient() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(
     config.supabase.url,

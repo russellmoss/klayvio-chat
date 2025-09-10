@@ -6,11 +6,9 @@ import {
   KlaviyoSegment,
   KlaviyoProfile,
   KlaviyoEvent,
-  KlaviyoMetrics,
   CampaignMetrics,
   FlowMetrics,
   SegmentMetrics,
-  OverallMetrics,
   WineryMetrics,
   WineClubMetrics,
   CustomerInsights,
@@ -33,6 +31,7 @@ export class KlaviyoClient {
         'Authorization': `Klaviyo-API-Key ${this.privateKey}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'revision': '2024-10-15', // Required header for Klaviyo API
       },
       timeout: 30000,
     });
@@ -103,6 +102,9 @@ export class KlaviyoClient {
   // Campaign Methods
   async getCampaigns(query?: KlaviyoQuery): Promise<KlaviyoApiResponse<KlaviyoCampaign[]>> {
     const params = this.buildQueryParams(query);
+    // Add email channel filter as required by Klaviyo API
+    params.filter = "equals(messages.channel,'email')";
+    // Note: Campaigns endpoint doesn't support pagination parameters
     return this.request<KlaviyoApiResponse<KlaviyoCampaign[]>>('/campaigns', params);
   }
 

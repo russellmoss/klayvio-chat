@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '@/lib/env';
-import { KlaviyoMetrics, WineryMetrics, WineClubMetrics, CustomerInsights } from '@/lib/klaviyo/types';
+import { WineryMetrics, WineClubMetrics, CustomerInsights } from '@/lib/klaviyo/types';
 
 export interface ClaudeResponse {
   content: string;
@@ -12,7 +12,9 @@ export interface ClaudeResponse {
 }
 
 export interface AnalysisContext {
-  metrics?: KlaviyoMetrics;
+  metrics?: Record<string, unknown>;
+  campaigns?: any[];
+  totalCampaigns?: number;
   wineryMetrics?: WineryMetrics;
   wineClubMetrics?: WineClubMetrics;
   customerInsights?: CustomerInsights;
@@ -32,6 +34,11 @@ export class ClaudeClient {
     timestamp: string;
   }> = [];
 
+  // Clear conversation history to avoid timestamp issues
+  clearHistory() {
+    this.conversationHistory = [];
+  }
+
   constructor() {
     this.client = new Anthropic({
       apiKey: config.anthropic.apiKey,
@@ -47,13 +54,16 @@ export class ClaudeClient {
       const systemPrompt = this.buildSystemPrompt(context);
       
       const response = await this.client.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-opus-4-1-20250805',
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [
-          ...this.conversationHistory.slice(-10), // Keep last 10 messages for context
+          ...this.conversationHistory.slice(-10).map(msg => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+          })), // Keep last 10 messages for context, remove timestamp
           {
-            role: 'user',
+            role: 'user' as const,
             content: prompt,
           },
         ],
@@ -87,22 +97,41 @@ export class ClaudeClient {
   }
 
   async analyzeEmailPerformance(
-    campaignData: any,
+    userQuery: string,
     context?: AnalysisContext
   ): Promise<string> {
     const prompt = `
-      Analyze the following email campaign performance data for a winery:
+      You are a wine industry email marketing expert analyzing Klaviyo data. 
       
-      Campaign Data: ${JSON.stringify(campaignData, null, 2)}
+      User Question: "${userQuery}"
       
-      Please provide:
-      1. Performance summary (open rates, click rates, conversions)
-      2. Key insights and trends
-      3. Recommendations for improvement
-      4. Wine industry specific insights
-      5. Actionable next steps
+      Available Data:
+      ${context?.campaigns ? `Campaigns: ${JSON.stringify(context.campaigns.slice(0, 5), null, 2)}` : 'No campaign data available'}
+      ${context?.totalCampaigns ? `Total Campaigns: ${context.totalCampaigns}` : ''}
+      ${context?.metrics ? `Metrics: ${JSON.stringify(context.metrics, null, 2)}` : 'No metrics available'}
       
-      Focus on wine industry best practices and customer engagement strategies.
+      Please provide a comprehensive analysis that:
+      1. Directly answers the user's question using the available data
+      2. Provides specific insights based on their actual campaign performance
+      3. Includes wine industry benchmarks and context
+      4. Offers actionable recommendations
+      5. Focuses on wine industry best practices
+      
+      IMPORTANT: Format your response as plain text without any markdown formatting. Do not use:
+      - # ## ### #### for headers
+      - ** for bold text
+      - * for italic text
+      - - or * for bullet points
+      - Any other markdown syntax
+      
+      Instead, use:
+      - Clear section breaks with line spacing
+      - Simple text formatting
+      - Numbered lists with 1. 2. 3.
+      - Clear paragraph breaks
+      
+      If you have real campaign data, use it. If not, provide general guidance while noting the limitation.
+      Be specific, actionable, and wine industry focused.
     `;
 
     return this.generateResponse(prompt, context);
@@ -208,7 +237,7 @@ export class ClaudeClient {
   }
 
   async analyzeCustomerBehavior(
-    customerData: any,
+    customerData: Record<string, unknown>,
     context?: AnalysisContext
   ): Promise<string> {
     const prompt = `
@@ -255,7 +284,7 @@ export class ClaudeClient {
   }
 
   async getPersonalizationRecommendations(
-    customerProfile: any,
+    customerProfile: Record<string, unknown>,
     context?: AnalysisContext
   ): Promise<string> {
     const prompt = `
@@ -279,7 +308,7 @@ export class ClaudeClient {
   }
 
   async analyzeMarketTrends(
-    marketData: any,
+    marketData: Record<string, unknown>,
     context?: AnalysisContext
   ): Promise<string> {
     const prompt = `
@@ -303,7 +332,7 @@ export class ClaudeClient {
   }
 
   async generateReportInsights(
-    reportData: any,
+    reportData: Record<string, unknown>,
     reportType: string,
     context?: AnalysisContext
   ): Promise<string> {

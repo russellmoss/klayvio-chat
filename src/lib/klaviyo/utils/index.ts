@@ -322,33 +322,4 @@ export const isValidPhoneNumber = (phone: string): boolean => {
   return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 
-// Export all utilities
-export {
-  formatDate,
-  formatDateTime,
-  getRelativeTime,
-  getCampaignStatusColor,
-  getCampaignStatusIcon,
-  isCampaignActive,
-  getCampaignPerformance,
-  getFlowStatusColor,
-  getFlowStatusIcon,
-  isFlowActive,
-  getSegmentSize,
-  getSegmentSizeColor,
-  getProfileDisplayName,
-  getProfileInitials,
-  getProfileLocation,
-  isProfileSubscribed,
-  formatPercentage,
-  formatCurrency,
-  formatNumber,
-  formatLargeNumber,
-  getPerformanceColor,
-  getPerformanceIcon,
-  getWineVarietalColor,
-  getSeasonalTrend,
-  getCustomerTierColor,
-  isValidEmail,
-  isValidPhoneNumber,
-};
+// All utilities are already exported above
