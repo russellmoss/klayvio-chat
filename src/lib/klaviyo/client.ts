@@ -34,6 +34,14 @@ export class KlaviyoClient {
         'revision': '2024-10-15', // Required header for Klaviyo API
       },
       timeout: 30000,
+      // Custom parameter serializer to preserve bracket notation
+      paramsSerializer: (params) => {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          searchParams.append(key, String(value));
+        });
+        return searchParams.toString();
+      },
     });
 
     this.setupInterceptors();
