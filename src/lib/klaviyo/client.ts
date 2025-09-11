@@ -102,12 +102,11 @@ export class KlaviyoClient {
   // Campaign Methods
   async getCampaigns(query?: KlaviyoQuery): Promise<any> {
     try {
-      const params = {
-        'page[size]': query?.pageSize || 50,
-        'sort': '-created_at', // Fixed: was '-created'
-        'fields[campaign]': 'name,status,created_at,updated_at,send_time,archived,channel',
-        'include': 'campaign-messages',
-      };
+      const params = this.buildQueryParams(query);
+      // Add campaign-specific parameters
+      params['filter'] = 'equals(messages.channel,"email")'; // Required filter for campaigns
+      params['fields[campaign]'] = 'name,status,created_at,updated_at,send_time,archived';
+      params['include'] = 'campaign-messages';
       
       const response = await this.request<any>('/campaigns', params);
       
@@ -119,7 +118,8 @@ export class KlaviyoClient {
         created: campaign.attributes?.created_at,
         sent: campaign.attributes?.send_time,
         archived: campaign.attributes?.archived || false,
-        channel: campaign.attributes?.channel || 'email',
+        // Note: channel is determined by the filter, not from the response
+        channel: 'email', // Since we're filtering for email campaigns
         recipients: 0,
         opens: 0,
         clicks: 0,
@@ -339,11 +339,10 @@ export class KlaviyoClient {
   // Profile Methods
   async getProfiles(query?: KlaviyoQuery): Promise<any> {
     try {
-      const params = {
-        'page[size]': query?.pageSize || 100,
-        'fields[profile]': 'email,first_name,last_name,created,updated,properties',
-        'additional-fields[profile]': 'subscriptions,predictive_analytics',
-      };
+      const params = this.buildQueryParams(query);
+      // Add profile-specific parameters
+      params['fields[profile]'] = 'email,first_name,last_name,created,updated,properties';
+      params['additional-fields[profile]'] = 'subscriptions,predictive_analytics';
       
       const response = await this.request<any>('/profiles', params);
       return response;
@@ -608,30 +607,11 @@ export class KlaviyoClient {
 
   async getLists(query?: KlaviyoQuery): Promise<any> {
     try {
-      const params = {
-        'page[size]': query?.pageSize || 50,
-        'fields[list]': 'name,created,updated,opt_in_process', // Fixed: removed 'profile_count'
-      };
+      const params = this.buildQueryParams(query);
+      // Add valid list fields - profile_count is not a valid field
+      params['fields[list]'] = 'name,created,updated,opt_in_process';
       
       const response = await this.request<any>('/lists', params);
-      
-      // To get profile count, we need to make a separate call for each list
-      // or use the relationships endpoint
-      if (response.data && response.data.length > 0) {
-        for (const list of response.data) {
-          try {
-            // Get profile count through relationships
-            const profilesResponse = await this.request<any>(
-              `/lists/${list.id}/profiles?page[size]=1`
-            );
-            list.profile_count = profilesResponse.meta?.total || 0;
-          } catch (err) {
-            console.log(`Could not fetch profile count for list ${list.id}`);
-            list.profile_count = 0;
-          }
-        }
-      }
-      
       return response;
     } catch (error) {
       console.error('Error fetching lists:', error);

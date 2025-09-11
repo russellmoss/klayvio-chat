@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { klaviyoClient } from '@/lib/klaviyo/client';
 import { config } from '@/lib/env';
+import { fetchWithConfig, handleKlaviyoResponse } from '@/lib/utils/klaviyo-fetch';
 
 export async function GET() {
   try {
@@ -23,16 +24,8 @@ export async function GET() {
     
     // Test the API connection first
     try {
-      const testResponse = await fetch('https://a.klaviyo.com/api/accounts', {
-        headers: {
-          'Authorization': `Klaviyo-API-Key ${config.klaviyo.privateKey}`,
-          'revision': '2024-10-15',
-        }
-      });
-      
-      if (!testResponse.ok) {
-        throw new Error(`API Key validation failed: ${testResponse.status}`);
-      }
+      const testResponse = await fetchWithConfig('https://a.klaviyo.com/api/accounts');
+      await handleKlaviyoResponse(testResponse);
     } catch (error) {
       return NextResponse.json({
         error: 'Invalid Klaviyo API key',
@@ -41,9 +34,29 @@ export async function GET() {
       }, { status: 401 });
     }
     
-    // Fetch actual metrics
-    const metrics = await klaviyoClient.getWineryMetrics();
-    const campaigns = await klaviyoClient.getCampaigns({ pageSize: 10 });
+    // Fetch actual metrics with better error handling
+    let metrics, campaigns, lists;
+    
+    try {
+      // Fetch data in parallel for better performance
+      [metrics, campaigns, lists] = await Promise.allSettled([
+        klaviyoClient.getWineryMetrics(),
+        klaviyoClient.getCampaigns({ pageSize: 10 }),
+        klaviyoClient.getLists({ pageSize: 10 })
+      ]);
+      
+      // Handle individual failures gracefully
+      metrics = metrics.status === 'fulfilled' ? metrics.value : { totalRevenue: 0, totalCampaigns: 0, totalSubscribers: 0 };
+      campaigns = campaigns.status === 'fulfilled' ? campaigns.value : { data: [], total: 0 };
+      lists = lists.status === 'fulfilled' ? lists.value : { data: [], meta: {} };
+      
+    } catch (error) {
+      console.error('Error fetching Klaviyo data:', error);
+      // Provide fallback data
+      metrics = { totalRevenue: 0, totalCampaigns: 0, totalSubscribers: 0 };
+      campaigns = { data: [], total: 0 };
+      lists = { data: [], meta: {} };
+    }
     
     // Calculate real metrics from actual Klaviyo data
     const totalSubscribers = await getTotalSubscribers();
@@ -67,6 +80,7 @@ export async function GET() {
         unsubscribeRate,
         revenuePerEmail,
         recentCampaigns: campaigns.data || [],
+        lists: lists.data || [],
         timestamp: new Date().toISOString(),
       }
     });
@@ -84,13 +98,11 @@ export async function GET() {
 // Helper methods to calculate metrics from real Klaviyo data
 async function getTotalSubscribers(): Promise<number> {
   try {
-    const response = await fetch('https://a.klaviyo.com/api/profiles?page[size]=1', {
-      headers: {
-        'Authorization': `Klaviyo-API-Key ${config.klaviyo.privateKey}`,
-        'revision': '2024-10-15',
-      }
+    const response = await fetchWithConfig('https://a.klaviyo.com/api/profiles', {
+      'page[size]': 1
     });
-    const data = await response.json();
+    
+    const data = await handleKlaviyoResponse(response);
     return data.meta?.total || 0;
   } catch (error) {
     console.error('Error fetching total subscribers:', error);
@@ -100,13 +112,12 @@ async function getTotalSubscribers(): Promise<number> {
 
 async function getActiveSubscribers(): Promise<number> {
   try {
-    const response = await fetch('https://a.klaviyo.com/api/profiles?filter=equals(subscriptions.email.marketing.consent,"SUBSCRIBED")&page[size]=1', {
-      headers: {
-        'Authorization': `Klaviyo-API-Key ${config.klaviyo.privateKey}`,
-        'revision': '2024-10-15',
-      }
+    const response = await fetchWithConfig('https://a.klaviyo.com/api/profiles', {
+      'filter': 'equals(subscriptions.email.marketing.consent,"SUBSCRIBED")',
+      'page[size]': 1
     });
-    const data = await response.json();
+    
+    const data = await handleKlaviyoResponse(response);
     return data.meta?.total || 0;
   } catch (error) {
     console.error('Error fetching active subscribers:', error);
