@@ -128,16 +128,6 @@ export class KlaviyoClient {
         revenue: 0,
       })) || [];
       
-      // Fetch metrics for each campaign
-      for (const campaign of campaigns) {
-        try {
-          const metrics = await this.getCampaignMetrics(campaign.id);
-          Object.assign(campaign, metrics);
-        } catch (error) {
-          console.log(`Could not fetch metrics for campaign ${campaign.id}`);
-        }
-      }
-      
       return { data: campaigns, total: response.meta?.total || campaigns.length };
     } catch (error) {
       console.error('Error fetching campaigns:', error);
@@ -150,135 +140,17 @@ export class KlaviyoClient {
   }
 
   async getCampaignMetrics(campaignId: string): Promise<any> {
-    try {
-      // First, try to get campaign messages to find the message ID
-      const messagesResponse = await this.request<any>(`/campaigns/${campaignId}/campaign-messages`);
-      const messageId = messagesResponse.data?.[0]?.id;
-      
-      if (!messageId) {
-        console.log(`No campaign messages found for campaign ${campaignId}`);
-        return this.getDefaultMetrics();
-      }
-      
-      // Try multiple approaches to get metrics
-      try {
-        // Approach 1: Try the metric-aggregates endpoint
-        const metrics = await this.getMetricsViaAggregates(campaignId, messageId);
-        if (metrics) return metrics;
-      } catch (error) {
-        console.log('Metric aggregates approach failed:', error.message);
-      }
-      
-      try {
-        // Approach 2: Try the Query API
-        const queryMetrics = await this.getMetricsViaQuery(campaignId);
-        if (queryMetrics) return queryMetrics;
-      } catch (error) {
-        console.log('Query API approach failed:', error.message);
-      }
-      
-      try {
-        // Approach 3: Try campaign message metrics
-        const messageMetrics = await this.getCampaignMessageMetrics(messageId);
-        if (messageMetrics) return messageMetrics;
-      } catch (error) {
-        console.log('Campaign message metrics approach failed:', error.message);
-      }
-      
-      // If all approaches fail, return default metrics
-      return this.getDefaultMetrics();
-      
-    } catch (error) {
-      console.log('Could not fetch campaign metrics:', error);
-      return this.getDefaultMetrics();
-    }
-  }
-
-  private async getMetricsViaAggregates(campaignId: string, messageId: string): Promise<any> {
-    try {
-      const params = {
-        'filter': `equals(campaign_id,"${campaignId}")`,
-        'measurements': ['unique_opens', 'unique_clicks', 'revenue'],
-        'interval': 'day',
-        'page[size]': 1,
-      };
-      
-      const response = await this.request<any>('/metric-aggregates', params);
-      
-      if (response.data && response.data.length > 0) {
-        const metrics = response.data[0];
-        return {
-          opens: metrics.attributes?.unique_opens || 0,
-          clicks: metrics.attributes?.unique_clicks || 0,
-          revenue: metrics.attributes?.revenue || 0,
-          open_rate: 0, // Will be calculated based on recipients
-          click_rate: 0, // Will be calculated based on recipients
-        };
-      }
-      return null;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  private async getMetricsViaQuery(campaignId: string): Promise<any> {
-    try {
-      const response = await this.postRequest<any>('/metrics/query', {
-        data: {
-          type: 'metric-aggregate',
-          attributes: {
-            metric_id: 'received_email',
-            measurements: ['count', 'unique'],
-            filter: [`equals(campaign_id,"${campaignId}")`],
-            interval: 'day',
-            timezone: 'America/Los_Angeles',
-          }
-        }
-      });
-      
-      if (response.data) {
-        return {
-          opens: response.data.attributes?.unique_opens || 0,
-          clicks: response.data.attributes?.unique_clicks || 0,
-          revenue: response.data.attributes?.revenue || 0,
-          open_rate: 0,
-          click_rate: 0,
-        };
-      }
-      return null;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  private async getCampaignMessageMetrics(messageId: string): Promise<any> {
-    try {
-      // Try to get metrics from campaign message relationships
-      const response = await this.request<any>(`/campaign-messages/${messageId}/relationships/campaign-recipient-estimations`);
-      
-      if (response.data) {
-        return {
-          recipients: response.data.attributes?.estimated_recipients || 0,
-          opens: response.data.attributes?.estimated_opens || 0,
-          clicks: response.data.attributes?.estimated_clicks || 0,
-          open_rate: response.data.attributes?.estimated_open_rate || 0,
-          click_rate: response.data.attributes?.estimated_click_rate || 0,
-          revenue: 0, // Revenue not available in this endpoint
-        };
-      }
-      return null;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  private getDefaultMetrics(): any {
+    // For now, return default metrics since the complex metrics endpoints
+    // are not accessible with the current API version (2024-10-15)
+    // The endpoints we tried are returning 405 Method Not Allowed and 404 Not Found errors
     return {
       recipients: 0,
       opens: 0,
       clicks: 0,
+      unsubscribes: 0,
       open_rate: 0,
       click_rate: 0,
+      unsubscribe_rate: 0,
       revenue: 0,
     };
   }
